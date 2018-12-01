@@ -109,7 +109,7 @@ bool AliasDb::hasWrites(Node* n) const {
   return false;
 }
 
-bool AliasDb::hasLiveWrites(Node* n) const {
+bool AliasDb::writesToInputAlias(Node* n) const {
   std::vector<const Value*> writes;
   for (const auto input : n->inputs()) {
     if (writesTo(n, input)) {
@@ -130,43 +130,9 @@ bool AliasDb::hasLiveWrites(Node* n) const {
     // Check every distinct alias set this value belongs to
     return std::any_of(
         aliasSets.cbegin(), aliasSets.cend(), [&](const Symbol aliasSet) {
-          return hasUsesAfter(aliasSet, n);
+          return graphInputAliases_.count(aliasSet) != 0;
         });
   });
-}
-
-// Returns true if there is a use of this alias set in the graph after `n`
-//
-// For wildcards: if there are any wildcards after `n`, we consider the alias
-// to be used.
-bool AliasDb::hasUsesAfter(Symbol alias, const Node* n) const {
-  if (graphInputAliases_.count(alias) != 0) {
-    // We must always consider graph input aliases to have future uses, since
-    // they may be used outside the graph.
-    return true;
-  }
-
-  const auto& values = aliasToValue_.at(alias);
-  for (const auto value : values) {
-    for (const auto& use : value->uses()) {
-      const auto& user = use.user;
-      if (user->owningGraph() != n->owningGraph()) {
-        // TODO(suo): We need this because alias analysis looks at subgraphs
-        // but isAfter() does not. Just be safe and say there is a use.
-        return true;
-      }
-      if (user->isAfter(n)) {
-        return true;
-      }
-    }
-  }
-
-  for (const auto wildcardNode : wildcardNodes_) {
-    if (wildcardNode->isAfter(n)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 std::unordered_set<Node*> AliasDb::getWritersForNode(const Node* n) const {

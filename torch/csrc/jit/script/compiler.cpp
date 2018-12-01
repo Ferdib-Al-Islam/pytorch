@@ -878,6 +878,7 @@ struct to_ir {
     method.setSchema({def.name().name(), std::move(arguments), std::move(returns)});
     // remove any uses of tuples that we inserted that are not needed
     LowerSimpleTuples(graph);
+    graph->dump();
     ConstantPooling(graph);
   }
 
